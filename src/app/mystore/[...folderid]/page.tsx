@@ -193,7 +193,6 @@ function FileItem({ file, path }: FileItemProps) {
             }
         }
     }
-
     const router = useRouter();
 
     function handleClickCard() {
