@@ -1,12 +1,13 @@
 "use client";
 import { Card, message, Empty, Button, Upload, UploadProps, List, Typography, Modal, Input, Space, Radio, Form } from "antd";
-import { useContext, useEffect, useState } from "react";
+import { use, useContext, useEffect, useRef, useState } from "react";
 import { SupabaseContext } from "../../layout";
 import { data } from "autoprefixer";
-import { FilePdfTwoTone, FileTwoTone, FolderTwoTone, PlusOutlined, UploadOutlined } from "@ant-design/icons";
+import { FileImageOutlined, FilePdfTwoTone, FileTwoTone, FolderTwoTone, PlayCircleOutlined, PlusOutlined, UploadOutlined, VideoCameraTwoTone } from "@ant-design/icons";
 import { useRouter } from 'next/navigation';
 import path from "path";
 import Breadcrumbs from "../components/Breadcrumb";
+import ReactPlayer from 'react-player'
 
 
 export default function MyStore({ params: { folderid }}) {
@@ -142,6 +143,9 @@ function FileItem({ file, path }: FileItemProps) {
     const [fileData, setFileData] = useState<Blob | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const supabase = useContext(SupabaseContext);
+    const [showFilePopup, setShowFilePopup] = useState(false);
+    
+    const urlRef = useRef('');
 
     const handleDownload = async (file: File) => {
         const link = document.createElement('a');
@@ -162,16 +166,25 @@ function FileItem({ file, path }: FileItemProps) {
         getFileData();
     }, []);
 
+    useEffect(() => {
+        if (fileData) {
+            urlRef.current = window.URL.createObjectURL(fileData);
+        }
+    }, [fileData]);
+
+
     const renderCover = () => {
         console.log({ fileData });
-        const url = fileData ? window.URL.createObjectURL(fileData) : '';
+        const url = urlRef.current;
         if (file) {
             if (file.metadata) {
                 const { metadata: { mimetype }} = file;
                 if (mimetype === 'image/gif' || mimetype === 'image/jpeg' || mimetype === 'image/png') {
-                    return <img src={url} className="h-[150px]" />
+                    return url ? <img src={url} className="h-[150px]" /> : <FileImageOutlined className="h-[150px] p-[10px] text-[100px]" />
                 } else if (mimetype === 'application/pdf') {
                     return <FilePdfTwoTone twoToneColor="rgb(230,0,0)" className="h-[150px] p-[10px] text-[100px]" />
+                } else if (mimetype === 'video/mp4') {
+                    return <ReactPlayer loop muted className="!w-[200px] max-h-[200px] bg-[#000] p-[10px] text-[100px]" playing url={url} />
                 } else {
                     <FileTwoTone />
                 }
@@ -183,10 +196,21 @@ function FileItem({ file, path }: FileItemProps) {
 
     const router = useRouter();
 
+    function handleClickCard() {
+       if (file && file.metadata) {
+            const { metadata: { mimetype }} = file;
+
+            if (mimetype === 'video/mp4') {
+                setShowFilePopup(true);
+            }
+       }
+    }
+
     return (
         <Card
             loading={previewLoading}
-            className="w-[200px] m-[20px]"
+            className="w-[200px] m-[20px] cursor-pointer"
+            onClick={handleClickCard}
             cover={renderCover()}
             actions={[
                 file.metadata ? <Button onClick={handleDownload}>Download</Button> : <Button onClick={() => router.push(`/mystore/${path}/${file.name}`)}>Open Folder</Button>
@@ -201,6 +225,9 @@ function FileItem({ file, path }: FileItemProps) {
                     <Typography.Text className="block text-[12px] mt-[-5px]">{`${(file.metadata.size/1024/1024).toFixed(2)} MB`}</Typography.Text>
                 </>
             )}
+            <Modal open={showFilePopup} onCancel={() => setShowFilePopup(false)} title={file.name}>
+                <ReactPlayer playIcon={<PlayCircleOutlined />} className="!w-[100%]" url={urlRef.current} />
+            </Modal>
         </Card>
     )
 }
